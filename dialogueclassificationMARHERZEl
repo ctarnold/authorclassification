@@ -1,0 +1,280 @@
+import os
+import pandas as pd
+import math
+
+directory = "local dir"
+
+i = 0
+
+groupFactor = 6
+vocabularyset = set()
+HERcount = 0
+ZELcount = 0
+MARcount = 0
+
+HERsentencecount = 0
+ZELsentencecount = 0
+MARsentencecount = 0
+
+HERwordmap = {}
+ZELwordmap = {}
+MARwordmap = {}
+
+# build a vocabulary set of the training data for herring1train and zeledon3
+# build wordmaps with word -> count for each herring
+for filename in os.listdir(directory):
+    if filename.endswith("herring1.tsv"): 
+        df = pd.read_csv(directory + "/" + filename, usecols = ['surface', 'speaker'], sep = '\t')
+        for row in df.iterrows():
+            HERcount = HERcount + 1
+            word = row[1][0]
+            vocabularyset.add(word)
+            if (HERwordmap.__contains__(word)):
+                count = HERwordmap.get(word)
+                HERwordmap[word] = count + 1
+            else:
+                HERwordmap[word] = 1
+            if (word == '.' or word == '!'):
+                HERsentencecount += 1
+    if filename.endswith("zeledon3.tsv"): 
+        df = pd.read_csv(directory + "/" + filename, usecols = ['surface', 'speaker'], sep = '\t')
+        for row in df.iterrows():
+            ZELcount = ZELcount + 1
+            word = row[1][0]
+            vocabularyset.add(word)
+            if (ZELwordmap.__contains__(word)):
+                count = ZELwordmap.get(word)
+                ZELwordmap[word] = count + 1
+            else:
+                ZELwordmap[word] = 1
+            if (word == '.' or word == '!' or word == '?'):
+                ZELsentencecount += 1
+    if filename.endswith("maria1.tsv"): 
+        df = pd.read_csv(directory + "/" + filename, usecols = ['surface', 'speaker'], sep = '\t')
+        for row in df.iterrows():
+            MARcount = MARcount + 1
+            word = row[1][0]
+            vocabularyset.add(word)
+            if (MARwordmap.__contains__(word)):
+                count = MARwordmap.get(word)
+                MARwordmap[word] = count + 1
+            else:
+                MARwordmap[word] = 1
+            if (word == '.' or word == '!' or word == '?'):
+                MARsentencecount += 1
+print(len(vocabularyset))
+print(HERcount)
+print(ZELcount)
+print(MARcount)
+
+classes = ["HER", "ZEL", "MAR"]
+classCounts = [HERcount, ZELcount, MARcount]
+logprior = [0, 0, 0]
+logpriorGrouped = [0, 0, 0]
+
+wordMaps = [HERwordmap, ZELwordmap, MARwordmap]
+
+loglikelihood = {}
+loglikelihoodGrouped = {}
+
+# Train Naive Bayes
+index = 0
+for val in classes:
+    
+    Ndoc = HERsentencecount + ZELsentencecount + MARsentencecount
+    Nclass = HERsentencecount
+    if (classes[index] == "ZEL"):
+        Nclass = ZELsentencecount
+    if (classes[index] == "MAR"):
+        Nclass = MARsentencecount
+
+    logprior[index] = math.log(Nclass/Ndoc)
+    logpriorGrouped[index] = math.log((Nclass/groupFactor)/ (Ndoc/groupFactor))
+   
+    for word in vocabularyset:
+        count = int(wordMaps[index].get(word) or 0)
+        numerator = count + 1
+        denominator = 0
+        for word2 in vocabularyset:
+            if (wordMaps[index].__contains__(word2)):
+                denominator = denominator + wordMaps[index].get(word2) + 1
+        # denominator = vocabularyset.__sizeof__()
+        # denominator += classCounts[index]
+        prelimVal = numerator/denominator
+        loglikelihood[word, classes[index]] = math.log(prelimVal)
+    index+=1
+
+
+
+# Test Naive Bayes
+
+# first separate the testing csv data into a set of
+# sentences for each dialogue
+HERsentenceSet = set()
+HERparagraphSet = set()
+ZELsentenceSet = set()
+ZELparagraphSet = set()
+MARsentenceSet = set()
+MARparagraphSet = set()
+
+sentences = set()
+paragraphs = set()
+
+counter = 1
+
+directory = "local dir"
+
+# build a set of sentences in the testing data for each dialogue
+for filename in os.listdir(directory):
+    runningString = ""
+    runningParagraph = ""
+    if(filename.endswith("zeledon3test.csv")):
+        df = pd.read_csv(directory + "/" + filename, 
+                         usecols = ['surface', 'speaker'], sep = ',')
+       
+        for row in df.iterrows():
+            word = row[1][0]
+            if (word == '.' or word == '!' or word == '?'):
+                ZELsentenceSet.add(runningString)
+                sentences.add(runningString)
+                runningParagraph = runningParagraph + " " + runningString
+                if (counter % groupFactor == 0):
+                    ZELparagraphSet.add(runningParagraph)
+                    paragraphs.add(runningParagraph)
+                    runningParagraph = ""
+                runningString = ""   
+            else:
+                runningString = runningString + " " + word
+            counter += 1
+    runningString = ""
+    counter = 1
+    if(filename.endswith("herring1test1.csv")):
+        df = pd.read_csv(directory + "/" + filename, 
+                         usecols = ['surface', 'speaker'], sep = ',')
+       
+        for row in df.iterrows():
+            word = row[1][0]
+            if (word == '.' or word == '!' or word == '?'):
+               HERsentenceSet.add(runningString)
+               sentences.add(runningString)
+               runningParagraph = runningParagraph + " " + runningString
+               if (counter % groupFactor == 0):
+                    HERparagraphSet.add(runningParagraph)
+                    paragraphs.add(runningParagraph)
+                    runningParagraph = ""
+               runningString = ""
+            else:
+                runningString = runningString + " " + word
+            counter += 1
+    runningString = ""
+    counter = 1
+    if(filename.endswith("maria1test.csv")):
+        df = pd.read_csv(directory + "/" + filename, 
+                         usecols = ['surface', 'speaker'], sep = ',')
+       
+        for row in df.iterrows():
+            word = row[1][0]
+            if (word == '.' or word == '!' or word == '?'):
+               MARsentenceSet.add(runningString)
+               sentences.add(runningString)
+               runningParagraph = runningParagraph + " " + runningString
+               if (counter % groupFactor == 0):
+                    MARparagraphSet.add(runningParagraph)
+                    paragraphs.add(runningParagraph)
+                    runningParagraph = ""
+               runningString = ""
+            else:
+                runningString = runningString + " " + word
+            counter += 1
+
+
+sum = [logprior[0], logprior[1], logprior[2]]
+index = 0
+
+correctCount = 0
+count = 0
+skipped = 0
+
+sentenceEvaluated = False
+
+for sentence in sentences:
+    sum = [logprior[0], logprior[1], logprior[2]]
+    wordlist = sentence.split()
+    for word in wordlist:
+        if (vocabularyset.__contains__(word)):
+            sum[0] = sum[0] + loglikelihood[word, classes[0]]
+            sum[1] = sum[1] + loglikelihood[word, classes[1]]
+            sum[2] = sum[2] + loglikelihood[word, classes[2]]
+        else:
+            skipped += 1
+    answer = "HER"
+    prediction = "HER"
+    if (ZELsentenceSet.__contains__(sentence)):
+        answer = "ZEL"
+    if (MARsentenceSet.__contains__(sentence)):
+        answer = "MAR"
+
+    if (sum[1] > sum[0] and sum[1] > sum[2]):
+        prediction = "ZEL"
+    
+    if (sum[2] > sum[0] and sum[2] > sum[1]):
+        prediction = "MAR"
+
+    if (answer == prediction):
+        correctCount += 1
+    count += 1
+    
+
+
+
+print("\n")
+print(correctCount)
+print(count)
+print(skipped)
+print(correctCount/count)
+print("above is the accuracy for individual sentences")
+
+index = 0
+
+correctCount = 0
+count = 0
+skipped = 0
+
+sentenceEvaluated = False
+
+for sentence in paragraphs:
+    sum = [logpriorGrouped[0], logpriorGrouped[1], logpriorGrouped[2]]
+    wordlist = sentence.split()
+    for word in wordlist:
+        if (vocabularyset.__contains__(word)):
+            sum[0] = sum[0] + loglikelihood[word, classes[0]]
+            sum[1] = sum[1] + loglikelihood[word, classes[1]]
+            sum[2] = sum[2] + loglikelihood[word, classes[2]]
+        else:
+            skipped += 1
+            # print(word + " skipped")
+    answer = "HER"
+    prediction = "HER"
+    if (ZELparagraphSet.__contains__(sentence)):
+        answer = "ZEL"
+    if (MARparagraphSet.__contains__(sentence)):
+        answer = "MAR"
+    if (sum[1] > sum[0] and sum[1] > sum[2]):
+        prediction = "ZEL"
+    if (sum[2] > sum[1] and sum[2] > sum[0]):
+        prediction = "MAR"
+
+    if (answer == prediction):
+        correctCount += 1
+    count += 1
+
+print("\n")
+print(correctCount)
+print(count)
+print(skipped)
+print(correctCount/count)
+print("above is the accuracy for groups of sentences")
+
+
+
+
