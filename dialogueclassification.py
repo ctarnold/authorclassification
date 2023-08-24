@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import math
 
-directory = "local directory omitted"
+directory = "local dir omitted"
 
 i = 0
 
@@ -32,7 +32,7 @@ for filename in os.listdir(directory):
                 HERwordmap[word] = count + 1
             else:
                 HERwordmap[word] = 1
-            if (word == '.' ):
+            if (word == '.' or word == '!'):
                 HERsentencecount += 1
     if filename.endswith("zeledon3.tsv"): 
         df = pd.read_csv(directory + "/" + filename, usecols = ['surface', 'speaker'], sep = '\t')
@@ -45,7 +45,7 @@ for filename in os.listdir(directory):
                 ZELwordmap[word] = count + 1
             else:
                 ZELwordmap[word] = 1
-            if (word == '.' ):
+            if (word == '.' or word == '!' or word == '?'):
                 ZELsentencecount += 1
 print(len(vocabularyset))
 print(HERcount)
@@ -101,7 +101,7 @@ paragraphs = set()
 
 counter = 1
 
-directory = "local directory omitted"
+directory = "local dir omitted"
 
 lastSpeaker = 'ELE'
 # build a set of sentences in the testing data for each dialogue
@@ -114,7 +114,7 @@ for filename in os.listdir(directory):
        
         for row in df.iterrows():
             word = row[1][0]
-            if (word == '.'):
+            if (word == '.' or word == '!' or word == '?'):
                 ZELsentenceSet.add(runningString)
                 sentences.add(runningString)
                 runningParagraph = runningParagraph + " " + runningString
@@ -134,7 +134,7 @@ for filename in os.listdir(directory):
        
         for row in df.iterrows():
             word = row[1][0]
-            if (word == '.'):
+            if (word == '.' or word == '!' or word == '?'):
                HERsentenceSet.add(runningString)
                sentences.add(runningString)
                runningParagraph = runningParagraph + " " + runningString
